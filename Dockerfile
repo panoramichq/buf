@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.0.0-experimental
 
-FROM golang:1.14.6 as basego
+FROM golang:1.15.1 as basego
 
 # ------------------------------------------------
 

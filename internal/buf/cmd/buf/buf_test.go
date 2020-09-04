@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/bufbuild/buf/internal/buf/bufcli"
 	"github.com/bufbuild/buf/internal/pkg/app"
 	"github.com/bufbuild/buf/internal/pkg/app/appcmd"
 	"github.com/bufbuild/buf/internal/pkg/app/appcmd/appcmdtesting"
@@ -291,7 +292,7 @@ func TestCheckLsLintCheckers2(t *testing.T) {
 		0,
 		`
 		ID                       CATEGORIES                            PURPOSE
-		PACKAGE_DIRECTORY_MATCH  MINIMAL, BASIC, DEFAULT, FILE_LAYOUT  Checks that all files with are in a directory that matches their package name.
+		PACKAGE_DIRECTORY_MATCH  MINIMAL, BASIC, DEFAULT, FILE_LAYOUT  Checks that all files are in a directory that matches their package name.
 		ENUM_NO_ALLOW_ALIAS      MINIMAL, BASIC, DEFAULT, SENSIBLE     Checks that enums do not have the allow_alias option set.
 		`,
 		"check",
@@ -477,6 +478,7 @@ func TestImageConvertRoundtripJSONBinaryJSON(t *testing.T) {
 }
 
 func testRunStdout(t *testing.T, expectedExitCode int, expectedStdout string, args ...string) {
+	t.Helper()
 	testRunStdoutInternal(
 		t,
 		expectedExitCode,
@@ -486,6 +488,7 @@ func testRunStdout(t *testing.T, expectedExitCode int, expectedStdout string, ar
 }
 
 func testRunStdoutProfile(t *testing.T, expectedExitCode int, expectedStdout string, args ...string) {
+	t.Helper()
 	profileDirPath, err := ioutil.TempDir("", "")
 	require.NoError(t, err)
 	defer func() { assert.NoError(t, os.RemoveAll(profileDirPath)) }()
@@ -504,12 +507,15 @@ func testRunStdoutProfile(t *testing.T, expectedExitCode int, expectedStdout str
 }
 
 func testRunStdoutInternal(t *testing.T, expectedExitCode int, expectedStdout string, args ...string) {
+	t.Helper()
 	appcmdtesting.RunCommandExitCodeStdout(
 		t,
-		func(use string) *appcmd.Command { return newRootCommand(use) },
+		func(use string) *appcmd.Command { return testNewRootCommand(use) },
 		expectedExitCode,
 		expectedStdout,
-		nil,
+		map[string]string{
+			"BUF_CONFIG_DIR": "testdata/config",
+		},
 		nil,
 		args...,
 	)
@@ -522,13 +528,20 @@ func testRun(
 	stdout io.Writer,
 	args ...string,
 ) {
+	t.Helper()
 	appcmdtesting.RunCommandExitCode(
 		t,
-		func(use string) *appcmd.Command { return newRootCommand(use) },
+		func(use string) *appcmd.Command { return testNewRootCommand(use) },
 		expectedExitCode,
-		nil,
+		map[string]string{
+			"BUF_CONFIG_DIR": "testdata/config",
+		},
 		stdin,
 		stdout,
 		args...,
 	)
+}
+
+func testNewRootCommand(use string) *appcmd.Command {
+	return newRootCommand(use, nil, bufcli.NopModuleReaderProvider)
 }

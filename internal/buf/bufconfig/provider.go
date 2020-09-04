@@ -16,17 +16,22 @@ package bufconfig
 
 import (
 	"context"
+	"errors"
 	"io/ioutil"
 
 	"github.com/bufbuild/buf/internal/buf/bufcheck/bufbreaking"
 	"github.com/bufbuild/buf/internal/buf/bufcheck/buflint"
-	"github.com/bufbuild/buf/internal/buf/bufmod"
+	"github.com/bufbuild/buf/internal/buf/bufcore/bufmodule"
+	"github.com/bufbuild/buf/internal/buf/bufcore/bufmodule/bufmodulebuild"
 	"github.com/bufbuild/buf/internal/pkg/encoding"
 	"github.com/bufbuild/buf/internal/pkg/storage"
 	"go.opencensus.io/trace"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 )
+
+// configFilePath is the default config file path within a bucket.
+const configFilePath = "buf.yaml"
 
 type provider struct {
 	logger                 *zap.Logger
@@ -48,7 +53,7 @@ func (p *provider) GetConfig(ctx context.Context, readBucket storage.ReadBucket)
 	defer span.End()
 
 	externalConfig := &ExternalConfig{}
-	readObject, err := readBucket.Get(ctx, ConfigFilePath)
+	readObject, err := readBucket.Get(ctx, configFilePath)
 	if err != nil {
 		if storage.IsNotExist(err) {
 			return p.newConfig(externalConfig)
@@ -85,7 +90,7 @@ func (p *provider) newConfig(externalConfig *ExternalConfig) (*Config, error) {
 			return nil, err
 		}
 	}
-	buildConfig, err := bufmod.NewConfig(externalConfig.Build)
+	buildConfig, err := bufmodulebuild.NewConfig(externalConfig.Build, externalConfig.Deps...)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +102,18 @@ func (p *provider) newConfig(externalConfig *ExternalConfig) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	var moduleName bufmodule.ModuleName
+	if externalConfig.Name != "" {
+		moduleName, err = bufmodule.ModuleNameForString(externalConfig.Name)
+		if err != nil {
+			return nil, err
+		}
+		if moduleName.Digest() != "" {
+			return nil, errors.New("config module name must not contain a digest")
+		}
+	}
 	return &Config{
+		Name:     moduleName,
 		Build:    buildConfig,
 		Breaking: breakingConfig,
 		Lint:     lintConfig,
