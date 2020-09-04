@@ -55,6 +55,7 @@ FROM python:3.8-buster as grpc_python_builder
 
 ## https://github.com/grpc/grpc/issues/15675
 ## Will be available as ${GRPC_DIR}/bins/opt/grpc_python_plugin binary
+## use as protoc ... --grpc_python_out=./src --plugin=protoc-gen-grpc_python=/usr/local/bin/grpc_python_plugin ...
 RUN GRPC_DIR=/opt/grpc && \
     git clone --recursive --depth 1 \
         --branch v1.31.0 \
@@ -73,6 +74,13 @@ RUN wget \
         -O /tmp/protoc.zip \
     && unzip /tmp/protoc.zip -d /opt/protoc \
     && chmod 755 /opt/protoc/bin/protoc
+
+# use as protoc ... --grpc-java_out=./athena-example/src/main/java --plugin=protoc-gen-grpc-java=/usr/local/bin/protoc-gen-grpc-java ...
+RUN wget \
+        https://search.maven.org/remotecontent?filepath=io/grpc/protoc-gen-grpc-java/1.31.0/protoc-gen-grpc-java-1.31.0-linux-x86_64.exe \
+        -O /opt/protoc/bin/protoc-gen-grpc-java \
+    && chmod 755 /opt/protoc/bin/protoc-gen-grpc-java
+
 
 # ------------------------------------------------
 
